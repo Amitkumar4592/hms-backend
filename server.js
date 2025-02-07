@@ -11,13 +11,13 @@ app.use(express.json());
 app.use(cors());
 
 // Load Firebase Admin SDK for backend operations (Firestore, Auth Management)
-const serviceAccount = require("./serviceAccountKey.json");
-if (!admin.apps.length) {
+const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+
   admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
     databaseURL: `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com`,
   });
-}
+
 
 // Firebase Client SDK (for user authentication)
 const firebaseConfig = {

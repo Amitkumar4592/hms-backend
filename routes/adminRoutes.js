@@ -112,4 +112,16 @@ router.get("/all-appointments", async (req, res) => {
   }
 });
 
+// 📌 6. Get All Registered Doctors
+router.get("/doctors", async (req, res) => {
+  try {
+    const doctorsSnapshot = await db.collection("doctors").get();
+    const doctors = doctorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    res.status(200).json({ doctors });
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching doctors" });
+  }
+});
+
 module.exports = router;

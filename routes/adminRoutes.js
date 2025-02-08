@@ -124,7 +124,7 @@ router.get("/doctors", async (req, res) => {
   }
 });
 
-// 📌 Delete a Patient
+// 📌 8. Delete a Patient (Also Removes Their Health Records)
 router.delete("/delete-patient/:id", async (req, res) => {
   const patientId = req.params.id;
 
@@ -132,15 +132,83 @@ router.delete("/delete-patient/:id", async (req, res) => {
     // Delete from Firebase Authentication
     await admin.auth().deleteUser(patientId);
 
-    // Delete from Firestore (Patient details & health records)
+    // Delete from Firestore
     await db.collection("patients").doc(patientId).delete();
-    const healthRecords = await db.collection("healthRecords").where("patientId", "==", patientId).get();
-    healthRecords.forEach(doc => doc.ref.delete());
+
+    // Delete associated health records
+    const healthRecordsSnapshot = await db.collection("healthRecords")
+      .where("patientId", "==", patientId)
+      .get();
+
+    const batch = db.batch();
+    healthRecordsSnapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
 
     res.status(200).json({ message: "Patient deleted successfully!" });
   } catch (error) {
     res.status(500).json({ error: "Error deleting patient" });
   }
 });
+
+
+// 📌 7. Get Full Patient Details (Including Health Records)
+router.get("/patient/:id", async (req, res) => {
+  const patientId = req.params.id;
+
+  try {
+    const patientDoc = await db.collection("patients").doc(patientId).get();
+    if (!patientDoc.exists) {
+      return res.status(404).json({ error: "Patient not found" });
+    }
+
+    // Fetch health records of the patient
+    const healthRecordsSnapshot = await db.collection("healthRecords")
+      .where("patientId", "==", patientId)
+      .get();
+
+    const healthRecords = healthRecordsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    res.status(200).json({
+      patient: patientDoc.data(),
+      healthRecords
+    });
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching patient details" });
+  }
+});
+
+// 📌 9. Get Full Doctor Details
+router.get("/doctor/:id", async (req, res) => {
+  const doctorId = req.params.id;
+
+  try {
+    const doctorDoc = await db.collection("doctors").doc(doctorId).get();
+    if (!doctorDoc.exists) {
+      return res.status(404).json({ error: "Doctor not found" });
+    }
+
+    res.status(200).json({ doctor: doctorDoc.data() });
+  } catch (error) {
+    res.status(500).json({ error: "Error fetching doctor details" });
+  }
+});
+
+// 📌 10. Delete Doctor (From Profile)
+router.delete("/delete-doctor/:id", async (req, res) => {
+  const doctorId = req.params.id;
+
+  try {
+    // Delete from Firebase Authentication
+    await admin.auth().deleteUser(doctorId);
+
+    // Delete from Firestore
+    await db.collection("doctors").doc(doctorId).delete();
+
+    res.status(200).json({ message: "Doctor deleted successfully!" });
+  } catch (error) {
+    res.status(500).json({ error: "Error deleting doctor" });
+  }
+});
+
 
 module.exports = router;

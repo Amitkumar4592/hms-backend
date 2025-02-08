@@ -124,4 +124,23 @@ router.get("/doctors", async (req, res) => {
   }
 });
 
+// 📌 Delete a Patient
+router.delete("/delete-patient/:id", async (req, res) => {
+  const patientId = req.params.id;
+
+  try {
+    // Delete from Firebase Authentication
+    await admin.auth().deleteUser(patientId);
+
+    // Delete from Firestore (Patient details & health records)
+    await db.collection("patients").doc(patientId).delete();
+    const healthRecords = await db.collection("healthRecords").where("patientId", "==", patientId).get();
+    healthRecords.forEach(doc => doc.ref.delete());
+
+    res.status(200).json({ message: "Patient deleted successfully!" });
+  } catch (error) {
+    res.status(500).json({ error: "Error deleting patient" });
+  }
+});
+
 module.exports = router;

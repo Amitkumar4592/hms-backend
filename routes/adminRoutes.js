@@ -210,5 +210,33 @@ router.delete("/delete-doctor/:id", async (req, res) => {
   }
 });
 
+// 📌 Delete a Patient (Removes from Auth & Firestore)
+router.delete("/delete-patient/:id", async (req, res) => {
+  const patientId = req.params.id;
+
+  try {
+    // Delete from Firebase Authentication
+    await admin.auth().deleteUser(patientId);
+
+    // Delete from Firestore
+    await db.collection("patients").doc(patientId).delete();
+
+    // Delete associated health records
+    const healthRecordsSnapshot = await db.collection("healthRecords")
+      .where("patientId", "==", patientId)
+      .get();
+
+    const batch = db.batch();
+    healthRecordsSnapshot.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+
+    res.status(200).json({ message: "Patient deleted successfully!" });
+  } catch (error) {
+    res.status(500).json({ error: "Error deleting patient" });
+  }
+});
+
+module.exports = router;
+
 
 module.exports = router;

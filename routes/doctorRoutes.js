@@ -45,22 +45,23 @@ router.get("/appointments/:id", async (req, res) => {
   }
 });
 
-// 📌 3. Update Doctor Availability
 router.put("/status/:id", async (req, res) => {
   const doctorId = req.params.id;
   const { available } = req.body;
 
-  // Validate input
-  const validationError = validateInput(req.body, ["available"]);
-  if (validationError) return res.status(400).json({ error: validationError });
-
   try {
     const doctorRef = db.collection("doctors").doc(doctorId);
+    const doctorDoc = await doctorRef.get();
+
+    if (!doctorDoc.exists) {
+      return res.status(404).json({ error: "Doctor not found" });
+    }
+
     await doctorRef.update({ available });
 
     res.status(200).json({ message: "Doctor status updated successfully!" });
   } catch (error) {
-    res.status(500).json({ error: "Error updating status" });
+    res.status(500).json({ error: "Error updating availability" });
   }
 });
 

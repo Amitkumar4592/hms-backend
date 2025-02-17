@@ -61,6 +61,7 @@ router.put("/status/:id", async (req, res) => {
 
     res.status(200).json({ message: "Doctor status updated successfully!" });
   } catch (error) {
+    console.error("Firestore Update Error:", error);
     res.status(500).json({ error: "Error updating availability" });
   }
 });

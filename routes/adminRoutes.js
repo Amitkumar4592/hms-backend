@@ -236,7 +236,31 @@ router.delete("/delete-patient/:id", async (req, res) => {
   }
 });
 
+
+// ✅ Update Appointment Status API
+router.put("/update-appointment/:id", async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!status) {
+    return res.status(400).json({ error: "Status is required." });
+  }
+
+  try {
+    const appointmentRef = db.collection("appointments").doc(id);
+    const appointmentDoc = await appointmentRef.get();
+
+    if (!appointmentDoc.exists) {
+      return res.status(404).json({ error: "Appointment not found." });
+    }
+
+    await appointmentRef.update({ status });
+
+    res.status(200).json({ message: `Appointment marked as ${status}!` });
+  } catch (error) {
+    res.status(500).json({ error: "Error updating appointment status." });
+  }
+});
+
 module.exports = router;
 
-
-module.exports = router;

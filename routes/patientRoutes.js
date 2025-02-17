@@ -91,6 +91,7 @@ router.get("/appointments/:id", async (req, res) => {
 });
 
 // 📌 5. Get Patient's Health Records
+// 📌 5. Get Patient's Health Records (With Doctor Name)
 router.get("/health-records/:id", async (req, res) => {
   const patientId = req.params.id;
 
@@ -99,13 +100,43 @@ router.get("/health-records/:id", async (req, res) => {
       .where("patientId", "==", patientId)
       .get();
 
-    const records = recordsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    if (recordsSnapshot.empty) {
+      return res.status(404).json({ error: "No health records found" });
+    }
 
-    res.status(200).json({ records });
+    const records = [];
+    const doctorIds = new Set();
+
+    recordsSnapshot.forEach(doc => {
+      const data = doc.data();
+      records.push({ id: doc.id, ...data });
+      doctorIds.add(data.doctorId);
+    });
+
+    // Fetch Doctor Names
+    const doctorDetails = {};
+    const doctorPromises = [...doctorIds].map(async (doctorId) => {
+      const doctorDoc = await db.collection("doctors").doc(doctorId).get();
+      if (doctorDoc.exists) {
+        doctorDetails[doctorId] = doctorDoc.data().name;
+      }
+    });
+
+    await Promise.all(doctorPromises);
+
+    // Attach doctor names to records
+    const formattedRecords = records.map(record => ({
+      ...record,
+      doctorName: doctorDetails[record.doctorId] || "Unknown",
+    }));
+
+    res.status(200).json({ records: formattedRecords });
   } catch (error) {
+    console.error("Error fetching health records:", error);
     res.status(500).json({ error: "Error fetching health records" });
   }
 });
+
 
 // 📌 6. Cancel Appointment
 router.delete("/cancel-appointment/:appointmentId", async (req, res) => {

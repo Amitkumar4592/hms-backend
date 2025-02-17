@@ -137,6 +137,41 @@ router.get("/health-records/:id", async (req, res) => {
   }
 });
 
+router.get("/available-slots/:doctorId/:date", async (req, res) => {
+  const { doctorId, date } = req.params;
+
+  try {
+    // Define available slots (9 AM to 5 PM, 30-minute slots)
+    const startTime = 9 * 60; // 9:00 AM in minutes
+    const endTime = 17 * 60; // 5:00 PM in minutes
+    const slotDuration = 30; // Each slot is 30 minutes
+
+    let allSlots = [];
+    for (let time = startTime; time < endTime; time += slotDuration) {
+      const hours = Math.floor(time / 60);
+      const minutes = time % 60;
+      const slotTime = `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+      allSlots.push(slotTime);
+    }
+
+    // Fetch booked slots for the selected date
+    const appointmentsSnapshot = await db.collection("appointments")
+      .where("doctorId", "==", doctorId)
+      .where("date", "==", date)
+      .get();
+
+    const bookedSlots = appointmentsSnapshot.docs.map(doc => doc.data().time);
+
+    // Filter out booked slots
+    const availableSlots = allSlots.filter(slot => !bookedSlots.includes(slot));
+
+    res.status(200).json({ availableSlots });
+  } catch (error) {
+    console.error("Error fetching available slots:", error);
+    res.status(500).json({ error: "Error fetching available slots" });
+  }
+});
+
 
 // 📌 6. Cancel Appointment
 router.delete("/cancel-appointment/:appointmentId", async (req, res) => {

@@ -29,21 +29,52 @@ router.get("/profile/:id", async (req, res) => {
 });
 
 // 📌 2. Get Doctor's Appointments
-router.get("/appointments/:id", async (req, res) => {
-  const doctorId = req.params.id;
+// 📌 2. Get Doctor's Appointments (With Patient Names)
+router.get("/appointments/:doctorId", async (req, res) => {
+  const doctorId = req.params.doctorId;
 
   try {
     const appointmentsSnapshot = await db.collection("appointments")
       .where("doctorId", "==", doctorId)
       .get();
 
-    const appointments = appointmentsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    if (appointmentsSnapshot.empty) {
+      return res.status(404).json({ error: "No appointments found" });
+    }
 
-    res.status(200).json({ appointments });
+    const appointments = [];
+    const patientIds = new Set();
+
+    appointmentsSnapshot.forEach(doc => {
+      const data = doc.data();
+      appointments.push({ id: doc.id, ...data });
+      patientIds.add(data.patientId);
+    });
+
+    // Fetch Patient Names
+    const patientDetails = {};
+    const patientPromises = [...patientIds].map(async (patientId) => {
+      const patientDoc = await db.collection("patients").doc(patientId).get();
+      if (patientDoc.exists) {
+        patientDetails[patientId] = patientDoc.data().name;
+      }
+    });
+
+    await Promise.all(patientPromises);
+
+    // Attach patient names to appointments
+    const formattedAppointments = appointments.map(app => ({
+      ...app,
+      patientName: patientDetails[app.patientId] || "Unknown",
+    }));
+
+    res.status(200).json({ appointments: formattedAppointments });
   } catch (error) {
+    console.error("Error fetching appointments:", error);
     res.status(500).json({ error: "Error fetching appointments" });
   }
 });
+
 
 router.put("/status/:id", async (req, res) => {
   const doctorId = req.params.id;
